@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineersmind - Real-Time Activity Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .last-updated {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.3em;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .metric-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th {
+            background-color: #f9f9f9;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .user-cell {
+            display: flex;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .badge-pr {
+            background-color: #e7f5ff;
+            color: #0066cc;
+        }
+
+        .badge-commit {
+            background-color: #f0f9ff;
+            color: #0066cc;
+        }
+
+        .badge-review {
+            background-color: #f6f8fa;
+            color: #666;
+        }
+
+        .badge-copilot {
+            background-color: #fffbf0;
+            color: #ff9500;
+        }
+
+        .large-number {
+            font-size: 2.5em;
+            color: #667eea;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .status-online {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #10b981;
+            margin-right: 8px;
+        }
+
+        .status-idle {
+            background-color: #f59e0b;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+
+        .error {
+            background-color: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .refresh-btn {
+            background-color: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-left: 10px;
+        }
+
+        .refresh-btn:hover {
+            background-color: #764ba2;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            padding: 12px;
+            border-left: 3px solid #667eea;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .activity-time {
+            font-size: 0.85em;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Engineersmind Activity Dashboard</h1>
+            <p class="last-updated">Real-time GitHub activity monitoring</p>
+            <div class="header-controls">
+                <span id="status"><span class="status-online"></span>Live</span>
+                <button class="refresh-btn" onclick="loadData()">🔄 Refresh Now</button>
+            </div>
+        </div>
+
+        <div id="error-message"></div>
+
+        <div class="dashboard-grid">
+            <!-- Team Overview -->
+            <div class="card">
+                <div class="card-title">👥 Team Overview</div>
+                <div id="team-overview" class="loading">Loading...</div>
+            </div>
+
+            <!-- Commits Today -->
+            <div class="card">
+                <div class="card-title">📝 Commits Today</div>
+                <div class="large-number" id="commits-today">-</div>
+                <div id="commits-details"></div>
+            </div>
+
+            <!-- PRs Status -->
+            <div class="card">
+                <div class="card-title">🔀 Pull Requests</div>
+                <div id="pr-status" class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Top Contributors -->
+        <div class="card">
+            <div class="card-title">⭐ Top Contributors (Last 7 Days)</div>
+            <div class="table-container">
+                <table id="contributors-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Commits</th>
+                            <th>PRs</th>
+                            <th>Reviews</th>
+                            <th>Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contributors-body">
+                        <tr><td colspan="5" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="two-col">
+            <!-- Code Review Metrics -->
+            <div class="card">
+                <div class="card-title">👁️ Code Review Metrics</div>
+                <div id="review-metrics" class="loading">Loading...</div>
+            </div>
+
+            <!-- Team Velocity -->
+            <div class="card">
+                <div class="card-title">⚡ Team Velocity</div>
+                <div id="velocity-metrics" class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Copilot Usage -->
+        <div class="card">
+            <div class="card-title">🤖 Copilot Usage Status</div>
+            <div class="table-container">
+                <table id="copilot-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>License Status</th>
+                            <th>Last Activity</th>
+                            <th>Usage Level</th>
+                        </tr>
+                    </thead>
+                    <tbody id="copilot-body">
+                        <tr><td colspan="4" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Activity Feed -->
+        <div class="card">
+            <div class="card-title">📊 Recent Activity Feed</div>
+            <div class="activity-feed" id="activity-feed">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            org: 'Engineersmind',
+            dataFile: 'dashboard-data.json',
+            updateInterval: 30000 // 30 seconds for polling
+        };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            // Poll for updates every 30 seconds
+            setInterval(loadData, CONFIG.updateInterval);
+        });
+
+        // Load data from generated JSON file
+        async function loadData() {
+            try {
+                const response = await fetch(`${CONFIG.dataFile}?t=${Date.now()}`);
+                if (!response.ok) throw new Error('Failed to fetch data');
+                
+                const data = await response.json();
+                renderDashboard(data);
+                updateStatus('online');
+                clearError();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                updateStatus('offline');
+                showError('Unable to load dashboard data. Check back soon!');
+            }
+        }
+
+        // Render the entire dashboard
+        function renderDashboard(data) {
+            renderTeamOverview(data);
+            renderCommitStats(data);
+            renderPRStatus(data);
+            renderContributors(data);
+            renderReviewMetrics(data);
+            renderVelocityMetrics(data);
+            renderCopilotUsage(data);
+            renderActivityFeed(data);
+        }
+
+        // Team Overview
+        function renderTeamOverview(data) {
+            const overview = data.teamOverview || {};
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Total Members</span>
+                    <span class="metric-value">${overview.totalMembers || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Active This Week</span>
+                    <span class="metric-value">${overview.activeThisWeek || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Repositories</span>
+                    <span class="metric-value">${overview.repositories || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Copilot Users</span>
+                    <span class="metric-value">${overview.copilotUsers || 0}</span>
+                </div>
+            `;
+            document.getElementById('team-overview').innerHTML = html;
+        }
+
+        // Commit Statistics
+        function renderCommitStats(data) {
+            const stats = data.commitStats || {};
+            document.getElementById('commits-today').textContent = stats.today || 0;
+            
+            const details = `
+                <div class="metric">
+                    <span class="metric-label">This Week</span>
+                    <span class="metric-value">${stats.thisWeek || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">This Month</span>
+                    <span class="metric-value">${stats.thisMonth || 0}</span>
+                </div>
+            `;
+            document.getElementById('commits-details').innerHTML = details;
+        }
+
+        // PR Status
+        function renderPRStatus(data) {
+            const prs = data.prStatus || {};
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Open PRs</span>
+                    <span class="metric-value"><span class="badge badge-pr">${prs.open || 0}</span></span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Merged This Week</span>
+                    <span class="metric-value"><span class="badge badge-pr">${prs.mergedThisWeek || 0}</span></span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Review Time</span>
+                    <span class="metric-value">${prs.avgReviewTime || 'N/A'}</span>
+                </div>
+            `;
+            document.getElementById('pr-status').innerHTML = html;
+        }
+
+        // Top Contributors
+        function renderContributors(data) {
+            const contributors = data.topContributors || [];
+            if (contributors.length === 0) {
+                document.getElementById('contributors-body').innerHTML = '<tr><td colspan="5">No data available</td></tr>';
+                return;
+            }
+
+            const rows = contributors.map(user => `
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <img src="${user.avatar}" alt="${user.username}" class="user-avatar">
+                            <strong>${user.username}</strong>
+                        </div>
+                    </td>
+                    <td><span class="badge badge-commit">${user.commits}</span></td>
+                    <td><span class="badge badge-pr">${user.prs}</span></td>
+                    <td><span class="badge badge-review">${user.reviews}</span></td>
+                    <td>
+                        <div style="width: 100px; background: #f0f0f0; border-radius: 10px; height: 20px; overflow: hidden;">
+                            <div style="width: ${user.activityScore}%; background: #667eea; height: 100%;"></div>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('contributors-body').innerHTML = rows;
+        }
+
+        // Code Review Metrics
+        function renderReviewMetrics(data) {
+            const metrics = data.reviewMetrics || {};
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Reviews This Week</span>
+                    <span class="metric-value">${metrics.thisWeek || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Avg Review Time</span>
+                    <span class="metric-value">${metrics.avgTime || 'N/A'}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Reviewers</span>
+                    <span class="metric-value">${metrics.activeReviewers || 0}</span>
+                </div>
+            `;
+            document.getElementById('review-metrics').innerHTML = html;
+        }
+
+        // Team Velocity
+        function renderVelocityMetrics(data) {
+            const velocity = data.velocity || {};
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Commits/Day (Avg)</span>
+                    <span class="metric-value">${velocity.commitsPerDay || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">PRs/Day (Avg)</span>
+                    <span class="metric-value">${velocity.prsPerDay || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Team Efficiency</span>
+                    <span class="metric-value">${velocity.efficiency || 'N/A'}</span>
+                </div>
+            `;
+            document.getElementById('velocity-metrics').innerHTML = html;
+        }
+
+        // Copilot Usage
+        function renderCopilotUsage(data) {
+            const users = data.copilotUsers || [];
+            if (users.length === 0) {
+                document.getElementById('copilot-body').innerHTML = '<tr><td colspan="4">No data available</td></tr>';
+                return;
+            }
+
+            const rows = users.map(user => `
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <img src="${user.avatar}" alt="${user.username}" class="user-avatar">
+                            <strong>${user.username}</strong>
+                        </div>
+                    </td>
+                    <td><span class="badge badge-copilot">${user.licenseStatus}</span></td>
+                    <td>${user.lastActivity || 'N/A'}</td>
+                    <td>${user.usageLevel || 'N/A'}</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('copilot-body').innerHTML = rows;
+        }
+
+        // Activity Feed
+        function renderActivityFeed(data) {
+            const activities = data.recentActivity || [];
+            if (activities.length === 0) {
+                document.getElementById('activity-feed').innerHTML = '<div class="activity-item">No recent activity</div>';
+                return;
+            }
+
+            const html = activities.slice(0, 10).map(activity => `
+                <div class="activity-item">
+                    <strong>${activity.user}</strong> ${activity.action}
+                    <div class="activity-time">${activity.timestamp}</div>
+                </div>
+            `).join('');
+            
+            document.getElementById('activity-feed').innerHTML = html;
+        }
+
+        // Helper functions
+        function updateStatus(status) {
+            const statusEl = document.getElementById('status');
+            if (status === 'online') {
+                statusEl.innerHTML = '<span class="status-online"></span>Live';
+                statusEl.style.color = '#10b981';
+            } else {
+                statusEl.innerHTML = '<span class="status-online status-idle"></span>Offline';
+                statusEl.style.color = '#f59e0b';
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-message').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
